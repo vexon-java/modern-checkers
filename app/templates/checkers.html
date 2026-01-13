@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Checkers</title>
+    <style>
+        :root {
+            /* Theme 1: Classic */
+            --bg-color: #f0f0f0;
+            --text-color: #333;
+            --board-light: #f5deb3;
+            --board-dark: #8b4513;
+            --piece-white: #fff8dc;
+            --piece-black: #2f2f2f;
+            --highlight: rgba(0, 255, 0, 0.4);
+            --valid-move: rgba(0, 255, 0, 0.3);
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+
+            /* Fonts */
+            --font-standard: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --font-serif: 'Georgia', 'Times New Roman', Times, serif;
+            --font-mono: 'Courier New', Courier, monospace;
+            --main-font: var(--font-standard);
+        }
+
+        [data-theme="dark"] {
+            /* Theme 2: Dark/Neon */
+            --bg-color: #1a1a1a;
+            --text-color: #00ffcc;
+            --board-light: #2a2a2a;
+            --board-dark: #000000;
+            --piece-white: #00ffff;
+            --piece-black: #ff00ff;
+            --highlight: rgba(255, 255, 0, 0.5);
+            --valid-move: rgba(0, 255, 0, 0.4);
+            --shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        [data-theme="wood"] {
+            /* Theme 3: Wood */
+            --bg-color: #deb887;
+            --text-color: #5c4033;
+            --board-light: #eecfa1;
+            --board-dark: #8b5a2b;
+            --piece-white: #f5f5f5;
+            --piece-black: #3e2723;
+            --highlight: rgba(255, 215, 0, 0.5);
+            --valid-move: rgba(100, 255, 100, 0.4);
+            --shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: var(--main-font);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        select,
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: var(--board-dark);
+            color: white;
+            transition: transform 0.1s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .turn-indicator span {
+            padding: 5px 10px;
+            border-radius: 5px;
+            background-color: var(--board-dark);
+            color: white;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 5px solid var(--board-dark);
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .cell.light {
+            background-color: var(--board-light);
+        }
+
+        .cell.dark {
+            background-color: var(--board-dark);
+        }
+
+        .cell.highlight {
+            background-color: var(--highlight) !important;
+        }
+
+        .cell.valid-move::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background-color: var(--valid-move);
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .piece {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            position: absolute;
+            z-index: 10;
+        }
+
+        .piece.white {
+            background-color: var(--piece-white);
+            border: 2px solid #ccc;
+        }
+
+        .piece.black {
+            background-color: var(--piece-black);
+            border: 2px solid #000;
+        }
+
+        .piece.king::after {
+            content: '♔';
+            color: gold;
+            font-size: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .piece.selected {
+            box-shadow: 0 0 15px yellow;
+            transform: scale(1.1);
+        }
+
+        .piece.captured {
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            color: #333;
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            font-size: 2rem;
+            color: var(--board-dark);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .board {
+                grid-template-columns: repeat(8, 11vw);
+                grid-template-rows: repeat(8, 11vw);
+            }
+
+            .cell,
+            .piece {
+                width: 11vw;
+                height: 11vw;
+            }
+
+            .piece {
+                width: 9vw;
+                height: 9vw;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Checkers</h1>
+
+    <div class="controls">
+        <button onclick="resetGame()">New Game</button>
+        <button id="aiToggle" onclick="toggleAI()">Play vs CPU: OFF</button>
+        <select id="themeSelect" onchange="changeTheme()">
+            <option value="classic">Classic Theme</option>
+            <option value="dark">Neon/Dark Theme</option>
+            <option value="wood">Wood Theme</option>
+        </select>
+        <select id="fontSelect" onchange="changeFont()">
+            <option value="standard">Standard Font</option>
+            <option value="serif">Serif Font</option>
+            <option value="mono">Monospace Font</option>
+        </select>
+    </div>
+
+    <div class="game-info">
+        <div id="white-score">White Captured: 0</div>
+        <div class="turn-indicator">Turn: <span id="turn-text">White</span></div>
+        <div id="black-score">Black Captured: 0</div>
+    </div>
+
+    <div class="board" id="board">
+        <!-- Grid generated by JS -->
+    </div>
+
+    <div id="winModal" class="modal">
+        <div class="modal-content">
+            <h2 id="winnerText">White Wins!</h2>
+            <button onclick="closeModal()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const turnText = document.getElementById('turn-text');
+        const whiteScoreEl = document.getElementById('white-score');
+        const blackScoreEl = document.getElementById('black-score');
+        const winModal = document.getElementById('winModal');
+        const winnerText = document.getElementById('winnerText');
+
+        let gameState = [];
+        let currentPlayer = 'white';
+        let selectedPiece = null;
+        let whiteCaptured = 0;
+        let blackCaptured = 0;
+        let isAIEnabled = false;
+
+        // Setup Board
+        function initGame() {
+            board.innerHTML = '';
+            gameState = [];
+            currentPlayer = 'white';
+            selectedPiece = null;
+            whiteCaptured = 0;
+            blackCaptured = 0;
+            updateUI();
+
+            // 8x8 Board
+            for (let r = 0; r < 8; r++) {
+                let row = [];
+                for (let c = 0; c < 8; c++) {
+                    let cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+
+                    if ((r + c) % 2 === 0) {
+                        cell.classList.add('light');
+                        row.push(null);
+                    } else {
+                        cell.classList.add('dark');
+                        cell.onclick = () => handleCellClick(r, c);
+
+                        // Place Pieces
+                        let pieceObj = null;
+                        if (r < 3) {
+                            pieceObj = { color: 'black', isKing: false };
+                        } else if (r > 4) {
+                            pieceObj = { color: 'white', isKing: false };
+                        }
+
+                        row.push(pieceObj);
+                        if (pieceObj) renderPiece(cell, pieceObj);
+                    }
+                    board.appendChild(cell);
+                }
+                gameState.push(row);
+            }
+        }
+
+        function renderPiece(cell, piece) {
+            const el = document.createElement('div');
+            el.classList.add('piece', piece.color);
+            if (piece.isKing) el.classList.add('king');
+            cell.appendChild(el);
+            // Click handler propagation fix
+            el.onclick = (e) => {
+                e.stopPropagation();
+                handleCellClick(parseInt(cell.dataset.r), parseInt(cell.dataset.c));
+            };
+        }
+
+        function handleCellClick(r, c) {
+            if (isAIEnabled && currentPlayer === 'black') return; // Block input
+
+            const piece = gameState[r][c];
+
+            // If selecting own piece
+            if (piece && piece.color === currentPlayer) {
+                selectPiece(r, c);
+                return;
+            }
+
+            // If moving to a valid spot
+            if (selectedPiece && !piece) {
+                tryMove(r, c);
+            }
+        }
+
+        function selectPiece(r, c) {
+            // Remove previous highlights
+            document.querySelectorAll('.cell').forEach(el => {
+                el.classList.remove('highlight', 'valid-move');
+            });
+            document.querySelectorAll('.piece').forEach(el => el.classList.remove('selected'));
+
+            const cell = getCell(r, c);
+            const pieceEl = cell.querySelector('.piece');
+            if (pieceEl) pieceEl.classList.add('selected');
+            cell.classList.add('highlight');
+
+            selectedPiece = { r, c };
+            showValidMoves(r, c);
+        }
+
+        function getCell(r, c) {
+            return document.querySelector(`.cell[data-r='${r}'][data-c='${c}']`);
+        }
+
+        function showValidMoves(r, c) {
+            const moves = getValidMoves(r, c, gameState[r][c]);
+            moves.forEach(m => {
+                const cell = getCell(m.r, m.c);
+                cell.classList.add('valid-move');
+            });
+        }
+
+        function getValidMoves(r, c, piece) {
+            let moves = [];
+            let directions = [];
+
+            // Allow all pieces to move in any direction (Omnidirectional)
+            directions.push([-1, -1], [-1, 1], [1, -1], [1, 1]);
+
+            directions.forEach(dir => {
+                let nr = r + dir[0];
+                let nc = c + dir[1];
+
+                // Normal Move
+                if (isValidPos(nr, nc) && gameState[nr][nc] === null) {
+                    moves.push({ r: nr, c: nc, isJump: false });
+                }
+
+                // Jump Move
+                if (isValidPos(nr, nc) && gameState[nr][nc] && gameState[nr][nc].color !== piece.color) {
+                    let nnr = nr + dir[0];
+                    let nnc = nc + dir[1];
+                    if (isValidPos(nnr, nnc) && gameState[nnr][nnc] === null) {
+                        moves.push({ r: nnr, c: nnc, isJump: true, captured: { r: nr, c: nc } });
+                    }
+                }
+            });
+
+            return moves;
+        }
+
+        function isValidPos(r, c) {
+            return r >= 0 && r < 8 && c >= 0 && c < 8;
+        }
+
+        function tryMove(tr, tc) {
+            const sr = selectedPiece.r;
+            const sc = selectedPiece.c;
+            const piece = gameState[sr][sc];
+            const moves = getValidMoves(sr, sc, piece);
+
+            const validMove = moves.find(m => m.r === tr && m.c === tc);
+            if (!validMove) return;
+
+            executeMove(sr, sc, tr, tc, validMove, piece);
+        }
+
+        function executeMove(sr, sc, tr, tc, move, piece) {
+            // Execute Move
+            gameState[tr][tc] = piece;
+            gameState[sr][sc] = null;
+
+            const startCell = getCell(sr, sc);
+            const endCell = getCell(tr, tc);
+
+            // For AI moves compatibility
+            let pieceEl = startCell.querySelector('.piece');
+            if (!pieceEl) {
+                return;
+            }
+            startCell.removeChild(pieceEl);
+            endCell.appendChild(pieceEl);
+
+            // Handle Capture
+            if (move.isJump) {
+                const capturedR = move.captured.r;
+                const capturedC = move.captured.c;
+                gameState[capturedR][capturedC] = null;
+                const capCell = getCell(capturedR, capturedC);
+
+                // Animate Capture
+                const capturedPieceEl = capCell.querySelector('.piece');
+                if (capturedPieceEl) {
+                    capturedPieceEl.classList.add('captured');
+                    setTimeout(() => {
+                        if (capCell.contains(capturedPieceEl)) {
+                            capCell.removeChild(capturedPieceEl);
+                        }
+                    }, 300); // 300ms is standard, sync with CSS transition
+                } else {
+                    capCell.innerHTML = '';
+                }
+
+                // Update counters after capture initiated
+                if (currentPlayer === 'white') whiteCaptured++;
+                else blackCaptured++;
+            }
+
+            // King Promotion
+            if (!piece.isKing) {
+                if ((piece.color === 'white' && tr === 0) || (piece.color === 'black' && tr === 7)) {
+                    piece.isKing = true;
+                    pieceEl.classList.add('king');
+                }
+            }
+
+            // End Turn
+            deselect();
+
+            // Check Win
+            if (checkWin()) return;
+
+            currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+            updateUI();
+
+            if (isAIEnabled && currentPlayer === 'black') {
+                setTimeout(makeAIMove, 700);
+            }
+        }
+
+        function makeAIMove() {
+            if (!isAIEnabled || currentPlayer !== 'black') return;
+
+            let allMoves = [];
+
+            // Find all valid moves for black
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const piece = gameState[r][c];
+                    if (piece && piece.color === 'black') {
+                        const moves = getValidMoves(r, c, piece);
+                        moves.forEach(m => {
+                            allMoves.push({ from: { r, c }, to: m, piece: piece });
+                        });
+                    }
+                }
+            }
+
+            if (allMoves.length === 0) {
+                return;
+            }
+
+            // Prioritize captures
+            const captures = allMoves.filter(m => m.to.isJump);
+            let chosenMove = null;
+
+            if (captures.length > 0) {
+                chosenMove = captures[Math.floor(Math.random() * captures.length)];
+            } else {
+                chosenMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+            }
+
+            executeMove(chosenMove.from.r, chosenMove.from.c, chosenMove.to.r, chosenMove.to.c, chosenMove.to, chosenMove.piece);
+        }
+
+        function deselect() {
+            selectedPiece = null;
+            document.querySelectorAll('.cell').forEach(el => {
+                el.classList.remove('highlight', 'valid-move');
+            });
+            document.querySelectorAll('.piece').forEach(el => el.classList.remove('selected'));
+        }
+
+        function updateUI() {
+            turnText.innerText = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1);
+            whiteScoreEl.innerText = `White Captured: ${whiteCaptured}`;
+            blackScoreEl.innerText = `Black Captured: ${blackCaptured}`;
+        }
+
+        function checkWin() {
+            let whiteCount = 0;
+            let blackCount = 0;
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (gameState[r][c]) {
+                        if (gameState[r][c].color === 'white') whiteCount++;
+                        else blackCount++;
+                    }
+                }
+            }
+
+            if (whiteCount === 0) {
+                gameOver('Black');
+                return true;
+            }
+            if (blackCount === 0) {
+                gameOver('White');
+                return true;
+            }
+            return false;
+        }
+
+        function gameOver(winner) {
+            winnerText.innerText = `${winner} Wins!`;
+            winModal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            winModal.style.display = 'none';
+            resetGame();
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        function changeTheme() {
+            const theme = document.getElementById('themeSelect').value;
+            if (theme === 'classic') {
+                document.documentElement.removeAttribute('data-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+        }
+
+        function changeFont() {
+            const font = document.getElementById('fontSelect').value;
+            const root = document.documentElement;
+            if (font === 'serif') {
+                root.style.setProperty('--main-font', 'var(--font-serif)');
+            } else if (font === 'mono') {
+                root.style.setProperty('--main-font', 'var(--font-mono)');
+            } else {
+                root.style.setProperty('--main-font', 'var(--font-standard)');
+            }
+        }
+
+        function toggleAI() {
+            isAIEnabled = !isAIEnabled;
+            const btn = document.getElementById('aiToggle');
+            btn.innerText = `Play vs CPU: ${isAIEnabled ? 'ON' : 'OFF'}`;
+            if (isAIEnabled && currentPlayer === 'black') {
+                setTimeout(makeAIMove, 500);
+            }
+        }
+
+        // Initialize
+        initGame();
+
+    </script>
+</body>
+
+</html>
